@@ -132,7 +132,8 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
             .sortedWith(
-                compareBy<WorkoutExerciseUi> { it.completed || it.skipped }
+                compareBy<WorkoutExerciseUi> { it.skipped }
+                    .thenBy { it.completed }
                     .thenBy { it.sortOrder }
                     .thenBy { it.name }
             )
@@ -270,13 +271,21 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun markDone(exerciseId: Long) {
-        completedIds.value = completedIds.value + exerciseId
-        skippedIds.value = skippedIds.value - exerciseId
+        if (completedIds.value.contains(exerciseId)) {
+            completedIds.value = completedIds.value - exerciseId
+        } else {
+            completedIds.value = completedIds.value + exerciseId
+            skippedIds.value = skippedIds.value - exerciseId
+        }
     }
 
     fun skipExercise(exerciseId: Long) {
-        skippedIds.value = skippedIds.value + exerciseId
-        completedIds.value = completedIds.value - exerciseId
+        if (skippedIds.value.contains(exerciseId)) {
+            skippedIds.value = skippedIds.value - exerciseId
+        } else {
+            skippedIds.value = skippedIds.value + exerciseId
+            completedIds.value = completedIds.value - exerciseId
+        }
     }
 
     fun selectSet(exerciseId: Long, setNumber: Int) {

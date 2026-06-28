@@ -58,6 +58,7 @@ private val WorkoutGreen = Color(0xFF4F7D5B)
 private val WorkoutSoftGreen = Color(0xFFEAF2EB)
 private val WorkoutLilac = Color(0xFFF0E8FF)
 private val WorkoutSkip = Color(0xFFFC095D)
+private val WorkoutSoftRed = Color(0xFFFFF5F5)
 
 data class WorkoutSummary(
     val durationSeconds: Long,
@@ -90,7 +91,7 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
             )
         }
     ) { padding ->
-        val isReorder = viewModel.reOrder.collectAsState()
+        val isReorder by viewModel.reOrder.collectAsState()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -131,26 +132,30 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
                             viewModel.reorderExercises()
                         }
                     ) {
-                        Text("Reorder", color = WorkoutMuted, fontSize = 14.sp)
-                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, tint = WorkoutMuted, modifier = Modifier.size(18.dp))
+                        Text(if (isReorder) "Done" else "Reorder", color = if (isReorder) WorkoutGreen else WorkoutMuted, fontSize = 14.sp)
+                        Icon(
+                            if (isReorder) Icons.Filled.Check else Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = null,
+                            tint = if (isReorder) WorkoutGreen else WorkoutMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
 
-            itemsIndexed(if (isReorder.value) state.exercises.reversed() else state.exercises, key = { _, exercise -> exercise.id }) { _, exercise ->
+            itemsIndexed(state.exercises, key = { _, exercise -> exercise.id }) { _, exercise ->
                 ExerciseCard(
                     exercise = exercise,
                     onDone = { viewModel.markDone(exercise.id) },
                     onSelectSet = { viewModel.selectSet(exercise.id, it) },
                     onUpdate = { name, weight, notes -> viewModel.updateExercise(exercise, name, weight, notes) },
+                    onDelete = { viewModel.deleteExercise(exercise.id) },
                     skipExercise = { viewModel.skipExercise(exercise.id) }
                 )
             }
 
             item {
-                Spacer(
-                    modifier = Modifier.height(100.dp)
-                )
+                Spacer(modifier = Modifier.height(100.dp))
             }
         }
     }
@@ -203,6 +208,9 @@ private fun WorkoutHeader(selectedPlan: WorkoutPlan?, exerciseCount: Int, onSwit
                 Text("Track Every Rep. Build Every PR.", color = WorkoutMuted, fontSize = 16.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = CircleShape, color = Color.White, border = BorderStroke(1.dp, WorkoutCardBorder)) {
+                    Icon(Icons.Filled.NotificationsNone, contentDescription = null, modifier = Modifier.padding(10.dp).size(24.dp), tint = WorkoutInk)
+                }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onSwitchPlans() }) {
                     Surface(
                         shape = CircleShape,
@@ -228,6 +236,13 @@ private fun WorkoutHeader(selectedPlan: WorkoutPlan?, exerciseCount: Int, onSwit
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Current Workout", color = WorkoutMuted, fontSize = 14.sp)
                     Text(selectedPlan?.name ?: "Rest Day", color = WorkoutInk, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+
+                    selectedPlan?.splitType?.let {
+                        Text(
+                            selectedPlan.splitType,
+                            color = WorkoutMuted, fontSize = 14.sp
+                        )
+                    }
                     Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Filled.FitnessCenter, contentDescription = null, tint = WorkoutInk, modifier = Modifier.size(16.dp))
@@ -268,14 +283,8 @@ private fun TimerCard(
                     targetState = state.elapsedSeconds, 
                     label = "timer", 
                     transitionSpec = {
-                        slideInVertically(
-                            initialOffsetY = { -it }, // Start above
-                            animationSpec = tween(500)
-                        ) + fadeIn() togetherWith
-                                slideOutVertically(
-                                    targetOffsetY = { it }, // Exit below
-                                    animationSpec = tween(500)
-                                ) + fadeOut()
+                        (slideInVertically(animationSpec = tween(220, delayMillis = 90)))
+                            .togetherWith(slideOutVertically (animationSpec = tween(90)))
                     }
                     ) { elapsed ->
                     Text(formatDuration(elapsed), color = WorkoutInk, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
@@ -321,6 +330,7 @@ private fun ExerciseCard(
     onDone: () -> Unit,
     onSelectSet: (Int) -> Unit,
     onUpdate: (String, Double, String) -> Unit,
+    onDelete: () -> Unit,
     skipExercise: () -> Unit
 ) {
     var weightText by remember(exercise.id) { mutableStateOf(weightToText(exercise.weight)) }
@@ -328,33 +338,46 @@ private fun ExerciseCard(
     var expanded by remember { mutableStateOf(false) }
 
     val containerColor by animateColorAsState(
-        targetValue = if (exercise.completed) Color(0xFFF9FAFA) else Color.White,
+        targetValue = when {
+            exercise.skipped -> WorkoutSoftRed
+            exercise.completed -> Color(0xFFF9FAFA)
+            else -> Color.White
+        },
         label = "exerciseTint"
     )
 
     Surface(
         shape = RoundedCornerShape(20.dp),
         color = containerColor,
-        border = BorderStroke(1.dp, if (exercise.completed) WorkoutGreen.copy(alpha = 0.3f) else WorkoutCardBorder)
+        border = BorderStroke(1.dp, when {
+            exercise.skipped -> WorkoutSkip.copy(alpha = 0.3f)
+            exercise.completed -> WorkoutGreen.copy(alpha = 0.3f)
+            else -> WorkoutCardBorder
+        })
     ) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(
                     onClick = onDone,
                     shape = CircleShape,
-                    color = if (exercise.completed) WorkoutGreen else Color.White,
-                    border = if (exercise.completed) null else BorderStroke(1.dp, WorkoutCardBorder),
+                    color = when {
+                        exercise.skipped -> WorkoutSkip
+                        exercise.completed -> WorkoutGreen
+                        else -> Color.White
+                    },
+                    border = if (exercise.completed || exercise.skipped) null else BorderStroke(1.dp, WorkoutCardBorder),
                     modifier = Modifier.size(36.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        if (exercise.completed) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        if (exercise.skipped) Icon(Icons.Filled.Close, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        else if (exercise.completed) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                     }
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         exercise.name,
-                        color = WorkoutInk,
+                        color = if (exercise.skipped) WorkoutSkip else WorkoutInk,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.ExtraBold,
                         maxLines = 4,
@@ -363,64 +386,85 @@ private fun ExerciseCard(
                     )
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Last: ${weightToText(exercise.previousWeight ?: 0.0)} kg \u00d7 8", color = WorkoutMuted, fontSize = 13.sp)
-                        Surface(shape = RoundedCornerShape(4.dp), color = WorkoutSoftGreen) {
+                        Surface(shape = RoundedCornerShape(4.dp), color = if (exercise.skipped) Color(0xFFFFEAEA) else WorkoutSoftGreen) {
                             Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = WorkoutGreen, modifier = Modifier.size(12.dp))
+                                Icon(
+                                    if (exercise.skipped) Icons.Filled.Block else Icons.AutoMirrored.Filled.TrendingUp,
+                                    contentDescription = null,
+                                    tint = if (exercise.skipped) WorkoutSkip else WorkoutGreen,
+                                    modifier = Modifier.size(12.dp)
+                                )
                                 Spacer(Modifier.width(2.dp))
-                                Text("PR ${weightToText(maxOf(exercise.previousWeight ?: 0.0, exercise.weight))} kg", color = WorkoutGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    if (exercise.skipped) "Skipped" else "PR ${weightToText(maxOf(exercise.previousWeight ?: 0.0, exercise.weight))} kg",
+                                    color = if (exercise.skipped) WorkoutSkip else WorkoutGreen,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
                 }
                 IconButton(onClick = skipExercise) {
-                    Icon(Icons.Filled.SkipNext, contentDescription = null, tint = WorkoutSkip)
+                    Icon(
+                        if (exercise.skipped) Icons.Filled.Undo else Icons.Filled.SkipNext,
+                        contentDescription = if (exercise.skipped) "Unskip" else "Skip",
+                        tint = if (exercise.skipped) WorkoutSkip else WorkoutInk
+                    )
+                }
+                IconButton(onClick = onDelete) {
+                    Icon(Icons.Filled.DeleteForever, contentDescription = "Delete", tint = WorkoutInk)
                 }
             }
 
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("-2.5", "-1").forEach { label ->
-                    WeightAdjustmentButton(label = label) {
-                        val delta = label.toDoubleOrNull() ?: 0.0
-                        val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
-                        weightText = weightToText(next)
-                        onUpdate(exercise.name, next, notesText)
+            if (!exercise.skipped) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("-2.5", "-1").forEach { label ->
+                        WeightAdjustmentButton(label = label) {
+                            val delta = label.toDoubleOrNull() ?: 0.0
+                            val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
+                            weightText = weightToText(next)
+                            onUpdate(exercise.name, next, notesText)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = weightText,
+                        onValueChange = { raw ->
+                            weightText = raw.filter { it.isDigit() || it == '.' }
+                            onUpdate(exercise.name, weightText.toDoubleOrNull() ?: 0.0, notesText)
+                        },
+                        modifier = Modifier.weight(1.5f),
+                        textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
+                        suffix = { Text("kg", color = WorkoutMuted, fontSize = 14.sp) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = WorkoutCardBorder,
+                            focusedBorderColor = WorkoutGreen,
+                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    listOf("+1", "+2.5").forEach { label ->
+                        WeightAdjustmentButton(label = label) {
+                            val delta = label.toDoubleOrNull() ?: 0.0
+                            val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
+                            weightText = weightToText(next)
+                            onUpdate(exercise.name, next, notesText)
+                        }
                     }
                 }
-                OutlinedTextField(
-                    value = weightText,
-                    onValueChange = { raw ->
-                        weightText = raw.filter { it.isDigit() || it == '.' }
-                        onUpdate(exercise.name, weightText.toDoubleOrNull() ?: 0.0, notesText)
-                    },
-                    modifier = Modifier.weight(1.5f),
-                    textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
-                    suffix = { Text("kg", color = WorkoutMuted, fontSize = 14.sp) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = WorkoutCardBorder,
-                        focusedBorderColor = WorkoutGreen,
-                        unfocusedContainerColor = Color.White,
-                        focusedContainerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-                listOf("+1", "+2.5").forEach { label ->
-                    WeightAdjustmentButton(label = label) {
-                        val delta = label.toDoubleOrNull() ?: 0.0
-                        val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
-                        weightText = weightToText(next)
-                        onUpdate(exercise.name, next, notesText)
-                    }
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Sets", color = WorkoutInk, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    SetPills(
+                        count = if (exercise.name.contains("$", ignoreCase = true)) exercise.name.takeLast(1).toIntOrNull() ?: 3 else 3,
+                        selectedSet = exercise.selectedSet,
+                        onSelect = onSelectSet
+                    )
                 }
             }
-
-            // SetPills added below weight input as requested
-            SetPills(
-                count = if (exercise.name.contains("$", ignoreCase = true)) exercise.name.takeLast(1).toIntOrNull() ?: 3 else 3,
-                selectedSet = exercise.selectedSet,
-                onSelect = onSelectSet
-            )
 
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
