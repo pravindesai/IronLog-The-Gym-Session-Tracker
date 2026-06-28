@@ -15,11 +15,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 data class WorkoutUiState(
     val plans: List<WorkoutPlan> = emptyList(),
@@ -55,10 +57,15 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     private val skippedIds = MutableStateFlow<Set<Long>>(emptySet())
     private val selectedSets = MutableStateFlow<Map<Long, Int>>(emptyMap())
 
+    private val _reOrder = MutableStateFlow(false)
+    val reOrder =_reOrder.asStateFlow()
+
+
     private var timerJob: Job? = null
     private var startedAt: Long = 0L
     private var activeStartedAt: Long = 0L
     private var accumulatedSeconds: Long = 0L
+    private var timerStartedDay: LocalDate? = null
 
     private val plans = repository.plans.stateIn(
         viewModelScope,
@@ -180,6 +187,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         elapsedSeconds.value = 0L
         running.value = true
         paused.value = false
+        timerStartedDay = LocalDate.now()
         launchTimer()
     }
 
@@ -261,10 +269,6 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun toggleComplete(exerciseId: Long) {
-        markDone(exerciseId)
-    }
-
     fun markDone(exerciseId: Long) {
         completedIds.value = completedIds.value + exerciseId
         skippedIds.value = skippedIds.value - exerciseId
@@ -300,6 +304,10 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         timerJob?.cancel()
         timerJob = viewModelScope.launch {
             while (running.value && !paused.value) {
+                if (timerStartedDay != null && timerStartedDay != LocalDate.now()) {
+                    finishWorkout()
+                    break
+                }
                 elapsedSeconds.value =
                     accumulatedSeconds + (System.currentTimeMillis() - activeStartedAt) / 1_000
                 delay(1_000)
@@ -315,6 +323,7 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
         elapsedSeconds.value = 0L
         running.value = false
         paused.value = false
+        timerStartedDay = null
     }
 
     private fun clearWorkoutMarks() {
@@ -326,5 +335,9 @@ class WorkoutViewModel(application: Application) : AndroidViewModel(application)
     override fun onCleared() {
         timerJob?.cancel()
         super.onCleared()
+    }
+
+    fun reorderExercises() {
+        _reOrder.value = reOrder.value.not()
     }
 }

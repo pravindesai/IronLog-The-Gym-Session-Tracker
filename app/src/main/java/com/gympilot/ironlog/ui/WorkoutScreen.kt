@@ -1,83 +1,29 @@
 package com.gympilot.ironlog.ui
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedAssistChip
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -97,28 +43,21 @@ import com.gympilot.ironlog.ui.theme.IronPrimary
 import com.gympilot.ironlog.ui.theme.IronSecondary
 import com.gympilot.ironlog.viewmodel.WorkoutUiState
 import com.gympilot.ironlog.viewmodel.WorkoutViewModel
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 
 private val splitOptions = listOf("Push", "Pull", "Legs", "Upper", "Lower", "Bro Split", "Custom")
 private val favoriteExercises = listOf(
-    "Bench Press",
-    "Squat",
-    "Deadlift",
-    "Overhead Press",
-    "Lat Pulldown",
-    "Seated Row",
-    "Leg Press",
-    "Biceps Curl"
+    "Bench Press", "Squat", "Deadlift", "Overhead Press",
+    "Lat Pulldown", "Seated Row", "Leg Press", "Biceps Curl"
 )
-private val WorkoutBackground = Color(0xFFF4F4F6)
-private val WorkoutCardBorder = Color(0xFFE7E7EC)
-private val WorkoutMuted = Color(0xFF858698)
-private val WorkoutMutedDark = Color(0xFF595959)
-private val WorkoutInput = Color(0xFFEDEDF2)
-private val WorkoutGreen = Color(0xFF18A84F)
+
+private val WorkoutBackground = Color(0xFFF9FAFA)
+private val WorkoutCardBorder = Color(0xFFE8E8E8)
+private val WorkoutMuted = Color(0xFF6E7681)
+private val WorkoutInk = Color(0xFF111B29)
+private val WorkoutGreen = Color(0xFF4F7D5B)
+private val WorkoutSoftGreen = Color(0xFFEAF2EB)
+private val WorkoutLilac = Color(0xFFF0E8FF)
+private val WorkoutSkip = Color(0xFFFC095D)
 
 data class WorkoutSummary(
     val durationSeconds: Long,
@@ -127,7 +66,7 @@ data class WorkoutSummary(
     val prCount: Int
 )
 
-@OptIn(ExperimentalLayoutApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = viewModel()) {
     val state by viewModel.uiState.collectAsState()
@@ -137,37 +76,38 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
     var summary by remember { mutableStateOf<WorkoutSummary?>(null) }
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(0.dp),
+        modifier = Modifier.fillMaxSize(),
         containerColor = WorkoutBackground,
         floatingActionButton = {
-            FloatingActionButton(
-                modifier = Modifier.padding(bottom = rootPadding.calculateBottomPadding()),
+            ExtendedFloatingActionButton(
+                modifier = Modifier.padding(bottom = rootPadding.calculateBottomPadding() + 16.dp),
                 onClick = { showAddExercise = true },
                 containerColor = WorkoutGreen,
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = "Add exercise")
-            }
+                contentColor = Color.White,
+                shape = RoundedCornerShape(16.dp),
+                icon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                text = { Text("Add Exercise", fontWeight = FontWeight.Bold) }
+            )
         }
     ) { padding ->
+        val isReorder = viewModel.reOrder.collectAsState()
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(WorkoutBackground),
-            contentPadding = PaddingValues(start = 18.dp, top = 28.dp, end = 18.dp, bottom = 96.dp),
+            contentPadding = PaddingValues(start = 18.dp, top = 20.dp, end = 18.dp, bottom = 100.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
                 WorkoutHeader(
                     selectedPlan = state.selectedPlan,
+                    exerciseCount = state.exercises.size,
                     onSwitchPlans = { showSwitchPlan = true }
                 )
             }
             item {
-                CompactTimerCard(
+                TimerCard(
                     state = state,
                     onStart = viewModel::startTimer,
                     onPause = viewModel::pauseTimer,
@@ -179,25 +119,38 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
                 )
             }
             item {
-                PlanChips(
-                    plans = state.plans,
-                    selectedPlan = state.selectedPlan,
-                    onSelect = viewModel::selectPlan,
-                    onAddPlan = { showCreatePlan = true }
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Exercises", color = WorkoutInk, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.clickable {
+                            viewModel.reorderExercises()
+                        }
+                    ) {
+                        Text("Reorder", color = WorkoutMuted, fontSize = 14.sp)
+                        Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, tint = WorkoutMuted, modifier = Modifier.size(18.dp))
+                    }
+                }
             }
-            itemsIndexed(state.exercises, key = { _, exercise -> exercise.id }) { _, exercise ->
-                TrainingExerciseCard(
+
+            itemsIndexed(if (isReorder.value) state.exercises.reversed() else state.exercises, key = { _, exercise -> exercise.id }) { _, exercise ->
+                ExerciseCard(
                     exercise = exercise,
                     onDone = { viewModel.markDone(exercise.id) },
-                    onSkip = { viewModel.skipExercise(exercise.id) },
                     onSelectSet = { viewModel.selectSet(exercise.id, it) },
                     onUpdate = { name, weight, notes -> viewModel.updateExercise(exercise, name, weight, notes) },
-                    onDelete = { viewModel.deleteExercise(exercise.id) }
+                    skipExercise = { viewModel.skipExercise(exercise.id) }
                 )
             }
+
             item {
-                AddExerciseRow(onClick = { showAddExercise = true })
+                Spacer(
+                    modifier = Modifier.height(100.dp)
+                )
             }
         }
     }
@@ -242,136 +195,120 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
 }
 
 @Composable
-private fun WorkoutHeader(selectedPlan: WorkoutPlan?, onSwitchPlans: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(22.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    //Text("IronLog", fontSize = 30.sp, lineHeight = 32.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF10111A))
-                    Surface(shape = CircleShape, color = WorkoutGreen) {
-                        Text(
-                            "IronLog",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            color = Color.White,
-                            fontSize = 30.sp,
-                            fontWeight = FontWeight.ExtraBold
-                        )
-                    }
-                }
-                Text(
-                    "Track Every Rep. Build Every PR.",
-                    color = WorkoutMutedDark,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+private fun WorkoutHeader(selectedPlan: WorkoutPlan?, exerciseCount: Int, onSwitchPlans: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text("IronLog", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = WorkoutInk)
+                Text("Track Every Rep. Build Every PR.", color = WorkoutMuted, fontSize = 16.sp)
             }
-            Surface(
-                onClick = onSwitchPlans,
-                shape = CircleShape,
-                color = Color(0xFFEDEDF2),
-                border = BorderStroke(1.dp, Color(0xFFD7D7DE))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Text("Switch", color = Color(0xFF11121B), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, modifier = Modifier.size(22.dp), tint = Color(0xFF11121B))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onSwitchPlans() }) {
+                    Surface(
+                        shape = CircleShape,
+                        color = WorkoutLilac,
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Filled.SwapHoriz, contentDescription = null, tint = WorkoutInk)
+                        }
+                    }
+                    Text("Switch", color = WorkoutInk, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = Color.White,
-            border = BorderStroke(1.dp, WorkoutCardBorder)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 23.dp, vertical = 18.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Current workout", color = WorkoutMuted, fontSize = 16.sp)
-                    Text(selectedPlan?.name ?: "No plan", color = Color(0xFF11121B), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+        Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.dp, WorkoutCardBorder)) {
+            Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = CircleShape, color = WorkoutSoftGreen, modifier = Modifier.size(56.dp)) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("💪", fontSize = 28.sp)
+                    }
                 }
-                Surface(shape = CircleShape, color = Color(0xFFD8F0DE)) {
-                    Text(
-                        selectedPlan?.splitType.orEmpty().ifBlank { "Plan" },
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp),
-                        color = WorkoutGreen,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.ExtraBold
-                    )
+                Spacer(Modifier.width(16.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Current Workout", color = WorkoutMuted, fontSize = 14.sp)
+                    Text(selectedPlan?.name ?: "Rest Day", color = WorkoutInk, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold)
+                    Row(modifier = Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.FitnessCenter, contentDescription = null, tint = WorkoutInk, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("$exerciseCount Exercises", color = WorkoutInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Filled.CalendarToday, contentDescription = null, tint = WorkoutInk, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Today", color = WorkoutInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
+                Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = WorkoutInk)
             }
         }
     }
 }
 
 @Composable
-private fun CompactTimerCard(
+private fun TimerCard(
     state: WorkoutUiState,
     onStart: () -> Unit,
     onPause: () -> Unit,
     onResume: () -> Unit,
     onFinish: () -> Unit
 ) {
-    Card(
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, WorkoutCardBorder)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(96.dp)
-                .padding(horizontal = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Surface(shape = CircleShape, color = Color(0xFFE9E9EF), modifier = Modifier.size(50.dp)) {
+    Surface(shape = RoundedCornerShape(24.dp), color = Color.White, border = BorderStroke(1.dp, WorkoutCardBorder)) {
+        Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, color = WorkoutSoftGreen, modifier = Modifier.size(48.dp)) {
                 Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Timer, contentDescription = null, tint = WorkoutMuted, modifier = Modifier.size(26.dp))
+                    Icon(Icons.Filled.Timer, contentDescription = null, tint = WorkoutGreen, modifier = Modifier.size(24.dp))
                 }
             }
-            AnimatedContent(targetState = state.elapsedSeconds, label = "timer") { elapsed ->
-                Text(formatDuration(elapsed), color = Color(0xFF070812), fontSize = 38.sp, lineHeight = 40.sp, fontWeight = FontWeight.ExtraBold)
-            }
-            Spacer(Modifier.weight(1f))
-            when {
-                !state.isRunning -> Button(
-                    onClick = onStart,
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = WorkoutGreen),
-                    contentPadding = PaddingValues(horizontal = 28.dp, vertical = 14.dp)
-                ) { Text("Start", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold) }
-                state.isPaused -> Button(
-                    onClick = onResume,
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(containerColor = WorkoutGreen),
-                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp)
-                ) { Text("Resume", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold) }
-                else -> Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Button(
-                        onClick = onPause,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFE4D4F5),
-                            contentColor = Color(0xFF11121B)
-                        ),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp)
-                    ) {
-                        Text("Pause", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                AnimatedContent(
+                    targetState = state.elapsedSeconds, 
+                    label = "timer", 
+                    transitionSpec = {
+                        slideInVertically(
+                            initialOffsetY = { -it }, // Start above
+                            animationSpec = tween(500)
+                        ) + fadeIn() togetherWith
+                                slideOutVertically(
+                                    targetOffsetY = { it }, // Exit below
+                                    animationSpec = tween(500)
+                                ) + fadeOut()
                     }
-                    FinishWorkoutButton(onClick = onFinish)
+                    ) { elapsed ->
+                    Text(formatDuration(elapsed), color = WorkoutInk, fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                }
+                Text(if (state.isRunning) "Workout in progress" else "Ready to start", color = WorkoutGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
+            if (!state.isRunning) {
+                Button(onClick = onStart, shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = WorkoutGreen)) {
+                    Text("Start", fontWeight = FontWeight.Bold)
+                }
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(
+                            onClick = if (state.isPaused) onResume else onPause,
+                            shape = CircleShape,
+                            color = WorkoutLilac,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(if (state.isPaused) Icons.Filled.PlayArrow else Icons.Filled.Pause, contentDescription = null, tint = WorkoutInk)
+                            }
+                        }
+                        Text(if (state.isPaused) "Resume" else "Pause", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WorkoutInk)
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Surface(onClick = onFinish, shape = CircleShape, color = WorkoutGreen, modifier = Modifier.size(56.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Filled.Stop, contentDescription = null, tint = Color.White)
+                            }
+                        }
+                        Text("Finish", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WorkoutInk)
+                    }
                 }
             }
         }
@@ -379,233 +316,140 @@ private fun CompactTimerCard(
 }
 
 @Composable
-private fun FinishWorkoutButton(onClick: () -> Unit) {
-    FilledIconButton(
-        onClick = onClick,
-        modifier = Modifier.size(48.dp),
-        shape = CircleShape,
-        colors = IconButtonDefaults.filledIconButtonColors(
-            containerColor = WorkoutGreen,
-            contentColor = Color.White
-        )
-    ) {
-        Icon(Icons.Filled.Check, contentDescription = "Finish workout", modifier = Modifier.size(24.dp))
-    }
-}
-
-@Composable
-private fun PlanChips(
-    plans: List<WorkoutPlan>,
-    selectedPlan: WorkoutPlan?,
-    onSelect: (Long) -> Unit,
-    onAddPlan: () -> Unit
-) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
-        items(plans, key = { it.id }) { plan ->
-            PlanPill(
-                label = plan.splitType.takeIf { it.length <= 8 } ?: plan.name,
-                selected = plan.id == selectedPlan?.id,
-                onClick = { onSelect(plan.id) }
-            )
-        }
-        item {
-            Surface(onClick = onAddPlan, shape = CircleShape, color = Color(0xFFEAEAEE), modifier = Modifier.size(43.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add plan", tint = WorkoutMuted, modifier = Modifier.size(22.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PlanPill(label: String, selected: Boolean, onClick: () -> Unit) {
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = if (selected) WorkoutGreen else Color(0xFFEAEAEE)
-    ) {
-        Text(
-            label,
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 11.dp),
-            color = if (selected) Color.White else WorkoutMuted,
-            fontSize = 17.sp,
-            fontWeight = FontWeight.ExtraBold
-        )
-    }
-}
-
-@Composable
-private fun TrainingExerciseCard(
+private fun ExerciseCard(
     exercise: WorkoutExerciseUi,
     onDone: () -> Unit,
-    onSkip: () -> Unit,
     onSelectSet: (Int) -> Unit,
     onUpdate: (String, Double, String) -> Unit,
-    onDelete: () -> Unit
+    skipExercise: () -> Unit
 ) {
     var weightText by remember(exercise.id) { mutableStateOf(weightToText(exercise.weight)) }
     var notesText by remember(exercise.id) { mutableStateOf(exercise.notes) }
-    var showRename by remember { mutableStateOf(false) }
-    var showDelete by remember { mutableStateOf(false) }
+    var expanded by remember { mutableStateOf(false) }
+
     val containerColor by animateColorAsState(
-        targetValue = when {
-            exercise.completed -> Color(0xFFF5FBF6)
-            exercise.skipped -> Color(0xFFFAF5F5)
-            else -> Color.White
-        },
-        animationSpec = spring(),
-        label = "exerciseCompleteTint"
+        targetValue = if (exercise.completed) Color(0xFFF9FAFA) else Color.White,
+        label = "exerciseTint"
     )
-    val borderColor = when {
-        exercise.completed -> Color(0xFFD8F0DE)
-        exercise.skipped -> Color(0xFFF0DADA)
-        else -> WorkoutCardBorder
-    }
-    val supportingTextColor = WorkoutMuted
 
-    LaunchedEffect(exercise.weight) {
-        if (weightText.toDoubleOrNull() != exercise.weight) weightText = weightToText(exercise.weight)
-    }
-    LaunchedEffect(exercise.notes) {
-        if (notesText != exercise.notes) notesText = exercise.notes
-    }
-
-    Card(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, borderColor)
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, if (exercise.completed) WorkoutGreen.copy(alpha = 0.3f) else WorkoutCardBorder)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                CompletionButton(
-                    completed = exercise.completed,
-                    skipped = exercise.skipped,
-                    onDone = onDone
-                )
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(
+                    onClick = onDone,
+                    shape = CircleShape,
+                    color = if (exercise.completed) WorkoutGreen else Color.White,
+                    border = if (exercise.completed) null else BorderStroke(1.dp, WorkoutCardBorder),
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        if (exercise.completed) Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         exercise.name,
-                        color = Color(0xFF11121B),
-                        fontSize = 20.sp,
-                        lineHeight = 22.sp,
+                        color = WorkoutInk,
+                        fontSize = 19.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        maxLines = 4,
+                        lineHeight = 22.sp,
+                        overflow = TextOverflow.Visible
                     )
-                    Text(
-                        when {
-                            exercise.completed -> exercise.selectedSet?.let { "Done · Set $it" } ?: "Done"
-                            exercise.skipped -> "Skipped"
-                            else -> exercise.previousWeight?.let { "Prev: ${weightToText(it)} kg × 3" } ?: "Prev: —"
-                        },
-                        color = supportingTextColor,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                if (!exercise.skipped) {
-                    TextButton(
-                        onClick = onSkip,
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Skip", color = Color.Red, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Last: ${weightToText(exercise.previousWeight ?: 0.0)} kg \u00d7 8", color = WorkoutMuted, fontSize = 13.sp)
+                        Surface(shape = RoundedCornerShape(4.dp), color = WorkoutSoftGreen) {
+                            Row(modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null, tint = WorkoutGreen, modifier = Modifier.size(12.dp))
+                                Spacer(Modifier.width(2.dp))
+                                Text("PR ${weightToText(maxOf(exercise.previousWeight ?: 0.0, exercise.weight))} kg", color = WorkoutGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
-                IconButton(onClick = { showRename = true }, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Filled.Edit, contentDescription = "Rename exercise", tint = WorkoutMuted, modifier = Modifier.size(21.dp))
-                }
-                IconButton(onClick = { showDelete = true }, modifier = Modifier.size(34.dp)) {
-                    Icon(Icons.Filled.Delete, contentDescription = "Delete exercise", tint = WorkoutMuted, modifier = Modifier.size(21.dp))
+                IconButton(onClick = skipExercise) {
+                    Icon(Icons.Filled.SkipNext, contentDescription = null, tint = WorkoutSkip)
                 }
             }
+
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("-2.5", "-1").forEach { label ->
+                    WeightAdjustmentButton(label = label) {
+                        val delta = label.toDoubleOrNull() ?: 0.0
+                        val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
+                        weightText = weightToText(next)
+                        onUpdate(exercise.name, next, notesText)
+                    }
+                }
+                OutlinedTextField(
+                    value = weightText,
+                    onValueChange = { raw ->
+                        weightText = raw.filter { it.isDigit() || it == '.' }
+                        onUpdate(exercise.name, weightText.toDoubleOrNull() ?: 0.0, notesText)
+                    },
+                    modifier = Modifier.weight(1.5f),
+                    textStyle = LocalTextStyle.current.copy(textAlign = TextAlign.Center, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp),
+                    suffix = { Text("kg", color = WorkoutMuted, fontSize = 14.sp) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = WorkoutCardBorder,
+                        focusedBorderColor = WorkoutGreen,
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                listOf("+1", "+2.5").forEach { label ->
+                    WeightAdjustmentButton(label = label) {
+                        val delta = label.toDoubleOrNull() ?: 0.0
+                        val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
+                        weightText = weightToText(next)
+                        onUpdate(exercise.name, next, notesText)
+                    }
+                }
+            }
+
+            // SetPills added below weight input as requested
             SetPills(
-                count = if (exercise.name.contains("$", ignoreCase = true)) exercise.name.takeLast(1).toInt() else 3,
+                count = if (exercise.name.contains("$", ignoreCase = true)) exercise.name.takeLast(1).toIntOrNull() ?: 3 else 3,
                 selectedSet = exercise.selectedSet,
                 onSelect = onSelectSet
             )
-            WeightStepper(
-                value = weightText,
-                completed = exercise.completed,
-                onValueChange = {
-                    weightText = it
-                    onUpdate(exercise.name, it.toDoubleOrNull() ?: 0.0, notesText)
-                },
-                onStep = { delta ->
-                    val next = ((weightText.toDoubleOrNull() ?: 0.0) + delta).coerceAtLeast(0.0)
-                    weightText = weightToText(next)
-                    onUpdate(exercise.name, next, notesText)
-                },
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = notesText,
-                onValueChange = {
-                    notesText = it
-                    onUpdate(exercise.name, weightText.toDoubleOrNull() ?: 0.0, notesText)
-                },
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Add a note...", color = Color(0xFFBFC0CA), fontSize = 18.sp, fontWeight = FontWeight.SemiBold) },
-                minLines = 1,
-                maxLines = 1,
-                shape = RoundedCornerShape(16.dp),
-                colors = pillTextFieldColors()
-            )
+
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable { expanded = !expanded }.padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Description, contentDescription = null, tint = WorkoutMuted, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Notes", color = WorkoutInk, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    Icon(if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = WorkoutInk)
+                }
+                if (expanded) {
+                    OutlinedTextField(
+                        value = notesText,
+                        onValueChange = {
+                            notesText = it
+                            onUpdate(exercise.name, weightText.toDoubleOrNull() ?: 0.0, notesText)
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        placeholder = { Text("Add notes...", fontSize = 14.sp) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            unfocusedBorderColor = WorkoutCardBorder,
+                            focusedBorderColor = WorkoutGreen
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
         }
-    }
-
-    if (showRename) {
-        RenameExerciseDialog(
-            initialValue = exercise.name,
-            onDismiss = { showRename = false },
-            onConfirm = {
-                onUpdate(it, weightText.toDoubleOrNull() ?: 0.0, notesText)
-                showRename = false
-            }
-        )
-    }
-    if (showDelete) {
-        DeleteConfirmationDialog(
-            exerciseName = exercise.name,
-            onDismiss = { showDelete = false },
-            onDelete = {
-                onDelete()
-                showDelete = false
-            }
-        )
-    }
-}
-
-@Composable
-private fun CompletionButton(completed: Boolean, skipped: Boolean, onDone: () -> Unit) {
-    val container = when {
-        skipped -> Color(0xFFF0DADA)
-        completed -> Color(0xFFD8F0DE)
-        else -> Color(0xFFE8E8EC)
-    }
-    val content = when {
-        skipped -> Color(0xFFB75B5B)
-        completed -> WorkoutGreen
-        else -> WorkoutMuted
-    }
-    FilledIconButton(
-        onClick = onDone,
-        modifier = Modifier.size(46.dp),
-        shape = CircleShape,
-        colors = IconButtonDefaults.filledIconButtonColors(
-            containerColor = container,
-            contentColor = content
-        )
-    ) {
-        Icon(
-            imageVector = if (skipped) Icons.Filled.Close else Icons.Filled.Check,
-            contentDescription = if (skipped) "Mark exercise done" else "Mark exercise done",
-            modifier = Modifier.size(24.dp)
-        )
     }
 }
 
@@ -618,7 +462,7 @@ private fun SetPills(count: Int, selectedSet: Int?, onSelect: (Int) -> Unit) {
             Surface(
                 onClick = { onSelect(setNumber) },
                 shape = RoundedCornerShape(12.dp),
-                color = if (selected) Color(0xFFD8F0DE) else Color(0xFFF0F0F3),
+                color = if (selected) WorkoutSoftGreen else Color(0xFFF4F4F4),
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
@@ -638,89 +482,15 @@ private fun SetPills(count: Int, selectedSet: Int?, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun WeightStepper(
-    value: String,
-    completed: Boolean,
-    onValueChange: (String) -> Unit,
-    onStep: (Double) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        FilledIconButton(
-            onClick = { onStep(-2.5) },
-            modifier = Modifier.size(50.dp),
-            shape = CircleShape,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = Color(0xFFE9E9EF),
-                contentColor = Color(0xFF11121B)
-            )
-        ) {
-            Icon(Icons.Filled.Remove, contentDescription = "Decrease weight", modifier = Modifier.size(24.dp))
-        }
-        OutlinedTextField(
-            value = value,
-            onValueChange = { raw -> onValueChange(raw.filter { it.isDigit() || it == '.' }) },
-            modifier = Modifier.weight(1f),
-            suffix = {
-                Text(
-                    "kg",
-                    color = WorkoutMuted,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold
-                )
-            },
-            textStyle = MaterialTheme.typography.titleLarge.copy(
-                color = Color(0xFF11121B),
-                fontWeight = FontWeight.ExtraBold,
-                textAlign = TextAlign.Center
-            ),
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            shape = RoundedCornerShape(16.dp),
-            colors = pillTextFieldColors()
-        )
-        FilledIconButton(
-            onClick = { onStep(2.5) },
-            modifier = Modifier.size(50.dp),
-            shape = CircleShape,
-            colors = IconButtonDefaults.filledIconButtonColors(
-                containerColor = WorkoutGreen,
-                contentColor = Color.White
-            )
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Increase weight", modifier = Modifier.size(27.dp))
-        }
-    }
-}
-
-@Composable
-private fun pillTextFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = WorkoutInput,
-    unfocusedContainerColor = WorkoutInput,
-    focusedBorderColor = Color.Transparent,
-    unfocusedBorderColor = Color.Transparent,
-    disabledBorderColor = Color.Transparent,
-    cursorColor = IronPrimary
-)
-
-@Composable
-private fun AddExerciseRow(onClick: () -> Unit) {
+private fun WeightAdjustmentButton(label: String, onClick: () -> Unit) {
     Surface(
         onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(70.dp),
-        shape = RoundedCornerShape(20.dp),
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, Color(0xFFDADBE2))
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFFF4F4F4),
+        modifier = Modifier.size(width = 54.dp, height = 44.dp)
     ) {
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = null, tint = WorkoutMuted, modifier = Modifier.size(24.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Add Exercise", color = WorkoutMuted, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+        Box(contentAlignment = Alignment.Center) {
+            Text(label, color = WorkoutInk, fontSize = 14.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -741,7 +511,7 @@ private fun AddExerciseDialog(
     }
     IronDialog(
         title = "Add Exercise",
-        subtitle = "Search your recent lifts or add a new movement without leaving the workout.",
+        subtitle = "Search your recent lifts or add a new movement.",
         icon = Icons.Filled.Add,
         onDismiss = onDismiss,
         confirmLabel = if (query.isBlank()) "Create Exercise" else "Create \"$query\"",
@@ -778,7 +548,7 @@ private fun QuickSection(title: String, values: List<String>, icon: ImageVector,
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun SwitchPlanSheet(
     plans: List<WorkoutPlanSummary>,
@@ -802,11 +572,19 @@ private fun SwitchPlanSheet(
             Text("Switch Plan", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF11121B))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 plans.forEach { plan ->
-                    PlanPill(
-                        label = plan.splitType.takeIf { it.length <= 8 } ?: plan.name,
-                        selected = plan.id == selectedPlanId,
-                        onClick = { onSelectPlan(plan.id) }
-                    )
+                    Surface(
+                        onClick = { onSelectPlan(plan.id) },
+                        shape = CircleShape,
+                        color = if (plan.id == selectedPlanId) WorkoutGreen else Color(0xFFEAEAEE)
+                    ) {
+                        Text(
+                            plan.name,
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 11.dp),
+                            color = if (plan.id == selectedPlanId) Color.White else WorkoutMuted,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
                 }
             }
             Button(
@@ -825,7 +603,7 @@ private fun SwitchPlanSheet(
     }
 }
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun CreatePlanSheet(
     onDismiss: () -> Unit,
@@ -856,7 +634,19 @@ private fun CreatePlanSheet(
             )
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 splitOptions.forEach { option ->
-                    PlanPill(label = option, selected = split == option, onClick = { split = option })
+                    Surface(
+                        onClick = { split = option },
+                        shape = CircleShape,
+                        color = if (split == option) WorkoutGreen else Color(0xFFEAEAEE)
+                    ) {
+                        Text(
+                            option,
+                            modifier = Modifier.padding(horizontal = 22.dp, vertical = 11.dp),
+                            color = if (split == option) Color.White else WorkoutMuted,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
                 }
             }
             Button(
@@ -874,99 +664,6 @@ private fun CreatePlanSheet(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun CreatePlanDialog(
-    plans: List<WorkoutPlan>,
-    selectedPlan: WorkoutPlan?,
-    onDismiss: () -> Unit,
-    onSelectPlan: (Long) -> Unit,
-    onConfirm: (String, String) -> Unit
-) {
-    var name by remember { mutableStateOf("") }
-    var split by remember { mutableStateOf(splitOptions.first()) }
-    IronDialog(
-        title = "Switch Plan",
-        subtitle = "Jump to another split, or create the next workout plan in one place.",
-        icon = Icons.Filled.SwapHoriz,
-        onDismiss = onDismiss,
-        confirmLabel = "Create New Plan",
-        confirmEnabled = name.isNotBlank(),
-        onConfirm = { onConfirm(name, split) }
-    ) {
-        if (plans.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Available plans", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    plans.forEach { plan ->
-                        FilterChip(
-                            selected = plan.id == selectedPlan?.id,
-                            onClick = { onSelectPlan(plan.id) },
-                            label = { Text(plan.name) }
-                        )
-                    }
-                }
-            }
-        }
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(22.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)
-        ) {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Create new", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Plan name") },
-                    singleLine = true
-                )
-            }
-        }
-        Text("Split type", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            splitOptions.forEach {
-                FilterChip(selected = split == it, onClick = { split = it }, label = { Text(it) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun RenameExerciseDialog(initialValue: String, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
-    var value by remember { mutableStateOf(initialValue) }
-    IronDialog(
-        title = "Rename Exercise",
-        subtitle = "Keep names short and easy to scan mid-set.",
-        icon = Icons.Filled.Edit,
-        onDismiss = onDismiss,
-        confirmLabel = "Rename",
-        confirmEnabled = value.isNotBlank(),
-        onConfirm = { onConfirm(value) }
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = { value = it },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Exercise name") },
-            singleLine = true
-        )
-    }
-}
-
-@Composable
-private fun DeleteConfirmationDialog(exerciseName: String, onDismiss: () -> Unit, onDelete: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(28.dp),
-        title = { Text("Delete Exercise", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
-        text = { Text("Remove $exerciseName from this workout plan?") },
-        confirmButton = { Button(onClick = onDelete) { Text("Delete") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
 @Composable
 private fun WorkoutSummaryDialog(summary: WorkoutSummary, onDismiss: () -> Unit) {
     AlertDialog(
@@ -980,7 +677,6 @@ private fun WorkoutSummaryDialog(summary: WorkoutSummary, onDismiss: () -> Unit)
                 SummaryRow("Exercises completed", summary.completedCount.toString())
                 SummaryRow("Total volume", "${weightToText(summary.totalVolume)} kg")
                 SummaryRow("Personal records", summary.prCount.toString())
-                Text("Saved locally on this device.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         },
         confirmButton = { Button(onClick = onDismiss) { Text("Done") } }

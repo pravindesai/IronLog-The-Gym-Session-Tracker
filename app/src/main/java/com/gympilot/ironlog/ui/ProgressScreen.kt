@@ -94,6 +94,7 @@ fun ProgressScreen(rootPadding: PaddingValues, viewModel: ProgressViewModel = vi
         item {
             MetricGrid(
                 streak = state.currentStreak,
+                maxStreak = state.maxStreak,
                 workouts = state.totalWorkouts,
                 averageDurationSeconds = state.averageDurationSeconds,
                 totalVolume = state.totalVolume
@@ -102,6 +103,8 @@ fun ProgressScreen(rootPadding: PaddingValues, viewModel: ProgressViewModel = vi
         item {
             WeightProgressCard(
                 selectedExercise = state.selectedExercise.ifBlank { "Bench Press" },
+                selectedRange = state.selectedRange,
+                onRangeSelect = viewModel::selectRange,
                 values = state.exerciseProgress.map { it.weight },
                 onExerciseClick = {
                     val names = state.exerciseNames
@@ -162,14 +165,15 @@ private fun ProgressHeader() {
 }
 
 @Composable
-private fun MetricGrid(streak: Int, workouts: Int, averageDurationSeconds: Long, totalVolume: Double) {
+private fun MetricGrid(streak: Int, maxStreak: Int, workouts: Int, averageDurationSeconds: Long, totalVolume: Double) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricTile("Streak", streak.toString(), "days", "Best: ${streak.coerceAtLeast(1) + 5}", Icons.Filled.LocalFireDepartment, Modifier.weight(1f))
+            MetricTile("Streak", streak.toString(), "days", "Best: $maxStreak", Icons.Filled.LocalFireDepartment, Modifier.weight(1f))
             MetricTile("Workouts", workouts.toString(), "total", "This month", Icons.Filled.FitnessCenter, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricTile("Avg. Duration", (averageDurationSeconds / 60).coerceAtLeast(0).toString(), "min", "This month", Icons.Filled.Timer, Modifier.weight(1f))
+            val avgMin = (averageDurationSeconds / 60)
+            MetricTile("Avg. Duration", avgMin.toString(), "min", "This month", Icons.Filled.Timer, Modifier.weight(1f))
             MetricTile("Total Volume", compactNumber(totalVolume), "kg", "This month", Icons.Filled.Scale, Modifier.weight(1f))
         }
     }
@@ -191,7 +195,13 @@ private fun MetricTile(label: String, value: String, unit: String, footer: Strin
 }
 
 @Composable
-private fun WeightProgressCard(selectedExercise: String, values: List<Double>, onExerciseClick: () -> Unit) {
+private fun WeightProgressCard(
+    selectedExercise: String,
+    selectedRange: String,
+    onRangeSelect: (String) -> Unit,
+    values: List<Double>,
+    onExerciseClick: () -> Unit
+) {
     val chartValues = values.ifEmpty { listOf(52.0, 57.0, 54.0, 61.0, 64.0, 66.0, 62.0, 70.0, 73.0, 70.0, 74.0, 78.0, 76.0, 82.0) }
     SoftCard {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -214,18 +224,22 @@ private fun WeightProgressCard(selectedExercise: String, values: List<Double>, o
                     )
                 }
             }
-            RangeTabs()
+            RangeTabs(selectedRange = selectedRange, onSelect = onRangeSelect)
             LineChart(values = chartValues, modifier = Modifier.height(190.dp))
         }
     }
 }
 
 @Composable
-private fun RangeTabs() {
+private fun RangeTabs(selectedRange: String, onSelect: (String) -> Unit) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround, verticalAlignment = Alignment.CenterVertically) {
         listOf("1W", "1M", "3M", "6M", "1Y", "All").forEach { label ->
-            val selected = label == "3M"
-            Surface(shape = RoundedCornerShape(10.dp), color = if (selected) Color(0xFFE2E7DF) else Color.Transparent) {
+            val selected = label == selectedRange
+            Surface(
+                onClick = { onSelect(label) },
+                shape = RoundedCornerShape(10.dp),
+                color = if (selected) Color(0xFFE2E7DF) else Color.Transparent
+            ) {
                 Text(
                     label,
                     modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),

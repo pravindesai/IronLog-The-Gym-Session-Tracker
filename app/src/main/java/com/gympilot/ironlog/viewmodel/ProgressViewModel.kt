@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -23,6 +24,7 @@ import java.time.ZoneId
 data class ProgressUiState(
     val totalWorkouts: Int = 0,
     val currentStreak: Int = 0,
+    val maxStreak: Int = 0,
     val averageDurationSeconds: Long = 0,
     val totalVolume: Double = 0.0,
     val sessions: List<SessionWithVolume> = emptyList(),
@@ -32,13 +34,15 @@ data class ProgressUiState(
     val logsBySession: Map<Long, List<HistoryLogItem>> = emptyMap(),
     val weeklyFrequency: List<Int> = List(7) { 0 },
     val monthlyWorkouts: List<Int> = List(6) { 0 },
-    val volumeOverTime: List<Double> = emptyList()
+    val volumeOverTime: List<Double> = emptyList(),
+    val selectedRange: String = "3M"
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProgressViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = IronLogRepository(IronLogDatabase.getInstance(application).dao())
     private val selectedExercise = MutableStateFlow("")
+    private val selectedRange = MutableStateFlow("3M")
 
     private val exerciseProgress = selectedExercise.flatMapLatest { name ->
         if (name.isBlank()) MutableStateFlow(emptyList()) else repository.progressForExercise(name)
@@ -52,12 +56,10 @@ class ProgressViewModel(application: Application) : AndroidViewModel(application
         repository.historyLogs
     ) { sessions, names, selected, progress, logs ->
         val chosen = selected.ifBlank { names.firstOrNull().orEmpty() }
-        if (selected.isBlank() && chosen.isNotBlank()) {
-            selectedExercise.value = chosen
-        }
         ProgressUiState(
             totalWorkouts = sessions.size,
             currentStreak = currentStreak(sessions),
+            maxStreak = maxStreak(sessions),
             averageDurationSeconds = sessions.map { it.durationSeconds }.averageOrZero().toLong(),
             totalVolume = sessions.sumOf { it.volume },
             sessions = sessions,
@@ -69,10 +71,26 @@ class ProgressViewModel(application: Application) : AndroidViewModel(application
             monthlyWorkouts = monthlyWorkouts(sessions),
             volumeOverTime = sessions.sortedBy { it.finishedAt }.map { it.volume }
         )
+    }.combine(selectedRange) { state, range ->
+        state.copy(selectedRange = range)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ProgressUiState())
+
+    init {
+        viewModelScope.launch {
+            repository.loggedExerciseNames.collect { names ->
+                if (selectedExercise.value.isBlank() && names.isNotEmpty()) {
+                    selectedExercise.value = names.first()
+                }
+            }
+        }
+    }
 
     fun selectExercise(name: String) {
         selectedExercise.value = name
+    }
+
+    fun selectRange(range: String) {
+        selectedRange.value = range
     }
 
     private fun currentStreak(sessions: List<SessionWithVolume>): Int {
@@ -88,6 +106,24 @@ class ProgressViewModel(application: Application) : AndroidViewModel(application
             day = day.minusDays(1)
         }
         return streak
+    }
+
+    private fun maxStreak(sessions: List<SessionWithVolume>): Int {
+        val workoutDays = sessions.map { it.finishedAt.toLocalDate() }.toSet().sorted()
+        if (workoutDays.isEmpty()) return 0
+        var max = 0
+        var current = 0
+        var lastDay: LocalDate? = null
+        for (day in workoutDays) {
+            if (lastDay == null || day == lastDay.plusDays(1)) {
+                current++
+            } else {
+                current = 1
+            }
+            max = maxOf(max, current)
+            lastDay = day
+        }
+        return max
     }
 
     private fun weeklyFrequency(sessions: List<SessionWithVolume>): List<Int> {
