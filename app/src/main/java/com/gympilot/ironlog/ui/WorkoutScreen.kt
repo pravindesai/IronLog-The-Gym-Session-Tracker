@@ -208,9 +208,6 @@ private fun WorkoutHeader(selectedPlan: WorkoutPlan?, exerciseCount: Int, onSwit
                 Text("Track Every Rep. Build Every PR.", color = WorkoutMuted, fontSize = 16.sp)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = CircleShape, color = Color.White, border = BorderStroke(1.dp, WorkoutCardBorder)) {
-                    Icon(Icons.Filled.NotificationsNone, contentDescription = null, modifier = Modifier.padding(10.dp).size(24.dp), tint = WorkoutInk)
-                }
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onSwitchPlans() }) {
                     Surface(
                         shape = CircleShape,
