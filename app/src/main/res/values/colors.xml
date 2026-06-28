@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="iron_primary">#618764</color>
+    <color name="iron_secondary">#9CB080</color>
+    <color name="iron_dark_accent">#2B5748</color>
+    <color name="iron_background">#F8F9F7</color>
+    <color name="iron_text">#273338</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+</resources>
