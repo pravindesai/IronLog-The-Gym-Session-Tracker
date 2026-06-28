@@ -1,5 +1,6 @@
 package com.gympilot.ironlog.ui
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -10,8 +11,12 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -26,8 +31,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -132,7 +139,7 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
                             viewModel.reorderExercises()
                         }
                     ) {
-                        Text(if (isReorder) "Done" else "Reorder", color = if (isReorder) WorkoutGreen else WorkoutMuted, fontSize = 14.sp)
+                        Text("Reorder", color = if (isReorder) WorkoutGreen else WorkoutMuted, fontSize = 14.sp)
                         Icon(
                             if (isReorder) Icons.Filled.Check else Icons.AutoMirrored.Filled.Sort,
                             contentDescription = null,
@@ -143,7 +150,8 @@ fun WorkoutScreen(rootPadding: PaddingValues, viewModel: WorkoutViewModel = view
                 }
             }
 
-            itemsIndexed(state.exercises, key = { _, exercise -> exercise.id }) { _, exercise ->
+            itemsIndexed(items =if (isReorder) state.exercises.reversed() else state.exercises,
+                key = { _, exercise -> exercise.id }) { _, exercise ->
                 ExerciseCard(
                     exercise = exercise,
                     onDone = { viewModel.markDone(exercise.id) },
@@ -321,6 +329,7 @@ private fun TimerCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ExerciseCard(
     exercise: WorkoutExerciseUi,
@@ -373,7 +382,7 @@ private fun ExerciseCard(
                 Spacer(Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        exercise.name,
+                        text = exercise.name.split("$").take(1).first(),
                         color = if (exercise.skipped) WorkoutSkip else WorkoutInk,
                         fontSize = 19.sp,
                         fontWeight = FontWeight.ExtraBold,
@@ -409,8 +418,32 @@ private fun ExerciseCard(
                         tint = if (exercise.skipped) WorkoutSkip else WorkoutInk
                     )
                 }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Filled.DeleteForever, contentDescription = "Delete", tint = WorkoutInk)
+                val context = LocalContext.current
+                val interactionSource = remember { MutableInteractionSource() }
+
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .combinedClickable(
+                            interactionSource = interactionSource,
+                            indication = LocalIndication.current,
+                            onClick = {
+                                Toast.makeText(
+                                    context,
+                                    "Long press to delete.",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            },
+                            onLongClick = onDelete
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.DeleteForever,
+                        contentDescription = "Delete",
+                        tint = WorkoutInk
+                    )
                 }
             }
 
@@ -528,7 +561,7 @@ private fun WeightAdjustmentButton(label: String, onClick: () -> Unit) {
         onClick = onClick,
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFFF4F4F4),
-        modifier = Modifier.size(width = 54.dp, height = 44.dp)
+        modifier = Modifier.size(width = 40.dp, height = 44.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(label, color = WorkoutInk, fontSize = 14.sp, fontWeight = FontWeight.Bold)
