@@ -96,13 +96,16 @@ fun ProgressScreen(rootPadding: PaddingValues, viewModel: ProgressViewModel = vi
                 streak = state.currentStreak,
                 maxStreak = state.maxStreak,
                 workouts = state.totalWorkouts,
+                workoutsThisMonth = state.workoutsThisMonth,
                 averageDurationSeconds = state.averageDurationSeconds,
-                totalVolume = state.totalVolume
+                avgDurationThisMonth = state.averageDurationSecondsThisMonth,
+                totalVolume = state.totalVolume,
+                totalVolumeThisMonth = state.totalVolumeThisMonth
             )
         }
         item {
             WeightProgressCard(
-                selectedExercise = state.selectedExercise.ifBlank { "Bench Press" },
+                selectedExercise = state.selectedExercise,
                 selectedRange = state.selectedRange,
                 onRangeSelect = viewModel::selectRange,
                 values = state.exerciseProgress.map { it.weight },
@@ -115,32 +118,33 @@ fun ProgressScreen(rootPadding: PaddingValues, viewModel: ProgressViewModel = vi
                 }
             )
         }
-        item {
-            PrHighlights(topLifts = topLifts)
+        if (topLifts.isNotEmpty()) {
+            item {
+                PrHighlights(topLifts = topLifts)
+            }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 FrequencyCard(
                     title = "Weekly Frequency",
                     subtitle = "Workouts per day",
-                    labels = listOf("M", "T", "W", "T", "F", "S", "S"),
+                    labels = state.weeklyLabels,
                     values = state.weeklyFrequency.map { it.toDouble() },
                     modifier = Modifier.weight(1f)
                 )
                 FrequencyCard(
                     title = "Monthly Workouts",
                     subtitle = "This year",
-                    labels = listOf("J", "F", "M", "A", "M", "J"),
+                    labels = state.monthlyLabels,
                     values = state.monthlyWorkouts.map { it.toDouble() },
                     modifier = Modifier.weight(1f)
                 )
             }
         }
-        item {
-            ExerciseDistributionCard(topLifts = topLifts)
-        }
-        item {
-            TopLiftsCard(topLifts = topLifts)
+        if (topLifts.isNotEmpty()) {
+            item {
+                TopLiftsCard(topLifts = topLifts)
+            }
         }
         item {
             VolumeCard(totalVolume = state.totalVolume, values = state.volumeOverTime)
@@ -165,16 +169,26 @@ private fun ProgressHeader() {
 }
 
 @Composable
-private fun MetricGrid(streak: Int, maxStreak: Int, workouts: Int, averageDurationSeconds: Long, totalVolume: Double) {
+private fun MetricGrid(
+    streak: Int,
+    maxStreak: Int,
+    workouts: Int,
+    workoutsThisMonth: Int,
+    averageDurationSeconds: Long,
+    avgDurationThisMonth: Long,
+    totalVolume: Double,
+    totalVolumeThisMonth: Double
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             MetricTile("Streak", streak.toString(), "days", "Best: $maxStreak", Icons.Filled.LocalFireDepartment, Modifier.weight(1f))
-            MetricTile("Workouts", workouts.toString(), "total", "This month", Icons.Filled.FitnessCenter, Modifier.weight(1f))
+            MetricTile("Workouts", workouts.toString(), "total", "$workoutsThisMonth this month", Icons.Filled.FitnessCenter, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             val avgMin = (averageDurationSeconds / 60)
-            MetricTile("Avg. Duration", avgMin.toString(), "min", "This month", Icons.Filled.Timer, Modifier.weight(1f))
-            MetricTile("Total Volume", compactNumber(totalVolume), "kg", "This month", Icons.Filled.Scale, Modifier.weight(1f))
+            val monthAvgMin = (avgDurationThisMonth / 60)
+            MetricTile("Avg. Duration", avgMin.toString(), "min", "$monthAvgMin min this month", Icons.Filled.Timer, Modifier.weight(1f))
+            MetricTile("Total Volume", compactNumber(totalVolume), "kg", "${compactNumber(totalVolumeThisMonth)} this month", Icons.Filled.Scale, Modifier.weight(1f))
         }
     }
 }
@@ -202,7 +216,6 @@ private fun WeightProgressCard(
     values: List<Double>,
     onExerciseClick: () -> Unit
 ) {
-    val chartValues = values.ifEmpty { listOf(52.0, 57.0, 54.0, 61.0, 64.0, 66.0, 62.0, 70.0, 73.0, 70.0, 74.0, 78.0, 76.0, 82.0) }
     SoftCard {
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -212,20 +225,28 @@ private fun WeightProgressCard(
                     Text("Weight Progression", color = ProgressInk, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
                     Text("Track your lifts over time", color = ProgressMuted, fontSize = 14.sp)
                 }
-                Surface(onClick = onExerciseClick, shape = CircleShape, color = Color(0xFFF5F6F3)) {
-                    Text(
-                        selectedExercise,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                        color = ProgressInk,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                if (selectedExercise.isNotEmpty()) {
+                    Surface(onClick = onExerciseClick, shape = CircleShape, color = Color(0xFFF5F6F3)) {
+                        Text(
+                            selectedExercise,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                            color = ProgressInk,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
-            RangeTabs(selectedRange = selectedRange, onSelect = onRangeSelect)
-            LineChart(values = chartValues, modifier = Modifier.height(190.dp))
+            if (values.isNotEmpty()) {
+                RangeTabs(selectedRange = selectedRange, onSelect = onRangeSelect)
+                LineChart(values = values, modifier = Modifier.height(190.dp))
+            } else {
+                Box(modifier = Modifier.height(190.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No data for ${selectedExercise.ifEmpty { "this exercise" }}", color = ProgressMuted, fontSize = 14.sp)
+                }
+            }
         }
     }
 }
@@ -254,9 +275,7 @@ private fun RangeTabs(selectedRange: String, onSelect: (String) -> Unit) {
 
 @Composable
 private fun PrHighlights(topLifts: List<TopLift>) {
-    val lifts = topLifts.ifEmpty {
-        listOf(TopLift("Bench Press", 90.0), TopLift("Squat", 120.0), TopLift("Deadlift", 160.0))
-    }.take(3)
+    val lifts = topLifts.take(3)
     SoftCard {
         Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -270,7 +289,7 @@ private fun PrHighlights(topLifts: List<TopLift>) {
                     Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(lift.name, color = ProgressMuted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${weightToText(lift.weight)} kg", color = ProgressInk, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("New PR", color = Color(0xFF119C45), fontSize = 13.sp)
+                        Text("Personal Record", color = Color(0xFF119C45), fontSize = 13.sp)
                     }
                 }
             }
@@ -284,25 +303,11 @@ private fun FrequencyCard(title: String, subtitle: String, labels: List<String>,
         Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(title, color = ProgressInk, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
             Text(subtitle, color = ProgressMuted, fontSize = 12.sp)
-            BarChart(values = values.ifEmpty { listOf(1.0, 2.0, 1.0, 4.0, 2.0, 3.0, 2.0) }, labels = labels, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-private fun ExerciseDistributionCard(topLifts: List<TopLift>) {
-    SoftCard {
-        Row(modifier = Modifier.padding(22.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Exercise Distribution", color = ProgressInk, fontSize = 17.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Volume by muscle group", color = ProgressMuted, fontSize = 13.sp)
-                DonutChart(modifier = Modifier.size(150.dp))
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(11.dp)) {
-                val names = listOf("Chest", "Back", "Legs", "Shoulders", "Arms", "Core")
-                val values = if (topLifts.isEmpty()) listOf(28, 25, 22, 12, 8, 5) else listOf(30, 24, 20, 12, 9, 5)
-                names.zip(values).forEachIndexed { index, item ->
-                    LegendRow(index, item.first, "${item.second}%")
+            if (values.any { it > 0 }) {
+                BarChart(values = values, labels = labels, modifier = Modifier.weight(1f))
+            } else {
+                Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No data", color = ProgressMuted, fontSize = 12.sp)
                 }
             }
         }
@@ -311,14 +316,7 @@ private fun ExerciseDistributionCard(topLifts: List<TopLift>) {
 
 @Composable
 private fun TopLiftsCard(topLifts: List<TopLift>) {
-    val lifts = topLifts.ifEmpty {
-        listOf(
-            TopLift("Bench Press", 90.0),
-            TopLift("Squat", 120.0),
-            TopLift("Deadlift", 160.0),
-            TopLift("Overhead Press", 60.0)
-        )
-    }.take(4)
+    val lifts = topLifts.take(4)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Top Lifts (PRs)", color = ProgressInk, fontSize = 21.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
@@ -356,17 +354,20 @@ private fun VolumeCard(totalVolume: Double, values: List<Double>) {
                     Text("Total volume (kg)", color = ProgressMuted, fontSize = 13.sp)
                 }
                 Surface(shape = CircleShape, color = Color(0xFFF5F6F3)) {
-                    Text("3 Months", modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp), color = ProgressInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("All Time", modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp), color = ProgressInk, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(compactNumber(totalVolume), color = ProgressInk, fontSize = 31.sp, fontWeight = FontWeight.ExtraBold)
                 Text("kg", color = ProgressMuted, fontSize = 16.sp, modifier = Modifier.padding(bottom = 5.dp))
-                Surface(shape = CircleShape, color = ProgressSoftGreen) {
-                    Text("↑ 18%", modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), color = ProgressGreen, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+            if (values.size > 1) {
+                LineChart(values = values, modifier = Modifier.height(160.dp), fill = true)
+            } else {
+                Box(modifier = Modifier.height(160.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("More workouts needed for trends", color = ProgressMuted, fontSize = 14.sp)
                 }
             }
-            LineChart(values = values.ifEmpty { listOf(4200.0, 4700.0, 5200.0, 6100.0, 6400.0, 7900.0, 9100.0, 10600.0, 11400.0, 12100.0, 13700.0) }, modifier = Modifier.height(160.dp), fill = true)
         }
     }
 }
@@ -474,6 +475,8 @@ private fun LineChart(values: List<Double>, modifier: Modifier = Modifier, fill:
             }
             drawPath(path, color = ProgressGreen, style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round))
             points.forEach { drawCircle(color = ProgressGreen, radius = 4.dp.toPx(), center = it) }
+        } else if (points.size == 1) {
+            drawCircle(color = ProgressGreen, radius = 6.dp.toPx(), center = points.first())
         }
     }
 }
@@ -491,42 +494,18 @@ private fun BarChart(values: List<Double>, labels: List<String>, modifier: Modif
             val gap = 11.dp.toPx()
             val barWidth = (size.width - gap * (values.size - 1)) / values.size.coerceAtLeast(1)
             values.forEachIndexed { index, value ->
-                val h = ((value / max).toFloat() * size.height * progress).coerceAtLeast(8.dp.toPx())
+                val h = ((value / max).toFloat() * size.height * progress).coerceAtLeast(2.dp.toPx())
                 drawRoundRect(
-                    color = if (index == values.indices.last || index == 3) ProgressGreen else Color(0xFFE3E8E5),
+                    color = if (value > 0) ProgressGreen else Color(0xFFE3E8E5),
                     topLeft = Offset(index * (barWidth + gap), size.height - h),
                     size = Size(barWidth, h),
                     cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx())
                 )
             }
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            labels.forEach { Text(it, color = ProgressInk, fontSize = 11.sp, textAlign = TextAlign.Center) }
+        Row(modifier = Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+            labels.forEach { Text(it, color = ProgressInk, fontSize = 11.sp, textAlign = TextAlign.Center, modifier = Modifier.width(20.dp)) }
         }
-    }
-}
-
-@Composable
-private fun DonutChart(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier) {
-        val colors = listOf(ProgressGreen, Color(0xFF9CB080), Color(0xFFA5A0CF), Color(0xFFD2CAF4), Color(0xFF7D8795), Color(0xFFB9C3C6))
-        val values = listOf(28f, 25f, 22f, 12f, 8f, 5f)
-        var start = -90f
-        values.forEachIndexed { index, value ->
-            val sweep = value / values.sum() * 360f
-            drawArc(colors[index], start, sweep, false, style = Stroke(width = 28.dp.toPx(), cap = StrokeCap.Butt))
-            start += sweep
-        }
-    }
-}
-
-@Composable
-private fun LegendRow(index: Int, label: String, value: String) {
-    val colors = listOf(ProgressGreen, Color(0xFF9CB080), Color(0xFFA5A0CF), Color(0xFFD2CAF4), Color(0xFF7D8795), Color(0xFFB9C3C6))
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Surface(shape = CircleShape, color = colors[index], modifier = Modifier.size(10.dp)) {}
-        Text(label, color = ProgressMuted, fontSize = 13.sp, modifier = Modifier.width(78.dp))
-        Text(value, color = ProgressInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
     }
 }
 
